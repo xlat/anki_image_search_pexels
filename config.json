@@ -1,4 +1,5 @@
 {
     "query_field": "English",
-    "image_field": "Image"
+    "image_field": "Image",
+    "pexels_api_key": ""
 }

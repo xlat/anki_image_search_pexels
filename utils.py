@@ -1,5 +1,6 @@
 import os
 from os.path import dirname, abspath, realpath
+import re
 import urllib
 import importlib
 from tempfile import mkstemp
@@ -17,12 +18,25 @@ def path_to(*args):
 def get_config():
     return mw.addonManager.getConfig(__name__)
 
+def get_api_key():
+    api_key = get_config()["pexels_api_key"]
+    print("DEBUG api_key:", api_key)
+    return api_key
+
 
 def get_note_query(note):
     field_names = mw.col.models.fieldNames(note.model())
+    query_field_name = get_config().get("query_field", "")
 
-    query_field = field_names.index(get_config()["query_field"])
-    return note.fields[query_field]
+    if query_field_name in field_names:
+        query_field = field_names.index(query_field_name)
+        return note.fields[query_field]
+    
+    if importlib.util.find_spec("aqt"):
+        from aqt.utils import showWarning
+        showWarning(f"Field '{query_field_name}' is absent, please check addon settings. Existing fields: {field_names}", title="Anki Image Search via Pexels v2 Addon")
+
+    return None
 
 
 def get_note_image_field_index(note):
@@ -34,7 +48,11 @@ def get_note_image_field_index(note):
 def save_file_to_library(editor, image_url, prefix, suffix):
     (i_file, temp_path) = mkstemp(prefix=prefix, suffix=suffix)
 
-    with urllib.request.urlopen(image_url) as response:
+    req = urllib.request.Request(image_url, headers={
+        "Authorization": get_api_key(),
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    })
+    with urllib.request.urlopen(req) as response:
         image_binary = response.read()
 
     os.write(i_file, image_binary)
@@ -51,9 +69,10 @@ def save_file_to_library(editor, image_url, prefix, suffix):
 def save_image_to_library(editor, image_url):
     if not image_url:
         return
-    # parsing Yandex Images thumbnail url to get id
-    image_id = image_url.split("id=")[1].split("&")[0]
-    return save_file_to_library(editor, image_url, image_id, ".webp")
+    match = re.search(r'/photos/(\d+)/', image_url)
+    image_id = match.group(1) if match else str(hash(image_url))[-8:]
+    ext = ".jpg"
+    return save_file_to_library(editor, image_url, image_id, ext)
 
 
 def image_tag(image_url):

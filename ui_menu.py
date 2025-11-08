@@ -1,3 +1,10 @@
+try:
+    from PyQt6 import QtCore
+    qt_version = 6
+except ImportError:
+    from PyQt5 import QtCore
+    qt_version = 5
+
 from aqt import mw
 from aqt.utils import qconnect
 from aqt.qt import *
@@ -23,18 +30,34 @@ def settings_dialog():
     box_image.addWidget(label_image)
     box_image.addWidget(text_image)
 
-    ok = QDialogButtonBox(QDialogButtonBox.Ok)
-    cancel = QDialogButtonBox(QDialogButtonBox.Cancel)
+    box_api_key = QHBoxLayout()
+    label_api_key = QLabel("Pexels api key:")
+    text_api_key = QLineEdit("")
+    text_api_key.setMinimumWidth(400)
+    box_api_key.addWidget(label_api_key)
+    box_api_key.addWidget(text_api_key)
+
+    box_hint_api_key = QHBoxLayout()
+    box_hint_api_key.addWidget(QLabel("You can get a free account and then get and Pexels API key from https://www.pexels.com/api/"))
+
+    if qt_version == 5:
+        ok = QDialogButtonBox(QDialogButtonBox.Ok)
+        cancel = QDialogButtonBox(QDialogButtonBox.Cancel)
+    else:
+        ok = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        cancel = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
 
     def init_configui():
         config = utils.get_config()
         text_query.setText(config["query_field"])
         text_image.setText(config["image_field"])
+        text_api_key.setText(config["pexels_api_key"])
 
     def save_config():
         config = utils.get_config()
-        config["image_field"] = text_query.text()
-        config["query_field"] = text_image.text()
+        config["query_field"] = text_query.text()
+        config["image_field"] = text_image.text()
+        config["pexels_api_key"] = text_api_key.text()
         mw.addonManager.writeConfig(__name__, config)
 
         dialog.close()
@@ -45,9 +68,13 @@ def settings_dialog():
 
         layout.addLayout(box_query)
         layout.addLayout(box_image)
+        layout.addLayout(box_api_key)
+        layout.addLayout(box_hint_api_key)
 
-        layout.addWidget(ok)
-        layout.addWidget(cancel)
+        buttons_bar = QHBoxLayout()
+        buttons_bar.addWidget(ok)
+        buttons_bar.addWidget(cancel)
+        layout.addLayout(buttons_bar)
 
     init_configui()
     ok.clicked.connect(save_config)
@@ -55,10 +82,12 @@ def settings_dialog():
 
     layout_everything()
 
-    dialog.exec_()
-
+    if qt_version == 5:
+        dialog.exec_()
+    else:
+        dialog.exec()
 
 def init_menu():
-    action = QAction("Anki Image Search v2 settings", mw)
+    action = QAction("Anki Image Search via Pexels v2 Addon", mw)
     qconnect(action.triggered, settings_dialog)
     mw.form.menuTools.addAction(action)
